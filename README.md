@@ -80,10 +80,12 @@ add noenable 10.0.0.1 1
 add cyphertype 10.0.0.1 {aes128-ctr}
 ```
 
-The user you use will probably need to be in the administrators group.
+The user you specify will probably need to be in the administrators group on the switch:
 
 ```
+conf t
 user rancid group administrators
+exit
 ```
 
 ## Compatibility
