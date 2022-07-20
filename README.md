@@ -2,14 +2,14 @@
 
 # What This Is
 
-A module for rancid (https://www.shrubbery.net/rancid/) to add support to rancid for Aruba's OS-CX models.
+A module for rancid (https://www.shrubbery.net/rancid/) to add support to rancid for Aruba devices running ArubaOS-CX (AOS-CX).
 
 # What This Is Not
 
 This module will not provide support for the following:
 
 - Aruba wireless controllers/mobility switches running ArubaOS/AOS - try https://github.com/miken32/rancid-aruba
-- Modern Aruba switches such as 2930F running ArubaOS-Switch/AOS-S - this is the new branding for ProvisionOS, and *should* be supported natively in rancid via device type 'hp' (running hlogin/hrancid) but changes may be required [to be tested]
+- Modern Aruba switches (e.g, 2930F) running ArubaOS-Switch/AOS-S - this is the new branding for ProvisionOS, and *should* be supported natively in rancid via device type 'hp' (running hlogin/hrancid) but changes may be required [to be tested]
 - Aruba/HPE Comware devices (a rancid module I've written called cmw will help here, but I need to properly publish it.  You may find old versions floating around, good luck with those ...)
 
 
@@ -77,7 +77,7 @@ Tested with models:
 
 It will also likely work for 6200, 6100 and other models running ArubaOS-CX.
 
-Tested with OSCX versions:
+Tested with ArubaOS-CX versions:
 
 - 10.5
 - 10.7
@@ -85,3 +85,4 @@ Tested with OSCX versions:
 ## Official Status
 
 Not official.  I would like it to be included in the main rancid distribution ...
+
