@@ -21,7 +21,9 @@ rancid 3.x
 
 Copy `arubaoscx.pm` into your rancid lib directory (ie, `/usr/local/rancid/lib/rancid` or similar).
 
-Add lines to your `rancid.types.conf`:
+Note that it works fine with the standard `clogin`, and doesn't require its own login script.
+
+Add lines to `rancid.types.conf`:
 
 ```
 arubaoscx;script;rancid -t arubaoscx
@@ -67,20 +69,39 @@ Add devices to your `router.db`:
 10.0.0.1;arubaoscx;up
 ```
 
+Add clauses to your `.cloginrc`, something like:
+
+```
+add password 10.0.0.1 {PLACEHOLDER-NOTUSED}
+add identity 10.0.0.1 {~/ssh/id_rancid}
+add user 10.0.0.1 rancid
+add method 10.0.0.1 ssh
+add noenable 10.0.0.1 1
+add cyphertype 10.0.0.1 {aes128-ctr}
+```
+
+The user you use will probably need to be in the administrators group.
+
+```
+user rancid group administrators
+```
 
 ## Compatibility
 
-Tested with models:
+Tested with models from:
 
-- Aruba 6300M
-- Aruba 8325
+- Aruba 6300 series (e.g. JL658A 6300M)
+- Aruba 8300 series (e.g. JL635A 8325-48Y8C)
+- Aruba 6100 series (e.g. JL675A 6100)
 
 It will also likely work for 6200, 6100 and other models running ArubaOS-CX.
 
 Tested with ArubaOS-CX versions:
 
 - 10.5
+- 10.6
 - 10.7
+- 10.9
 
 ## Official Status
 
