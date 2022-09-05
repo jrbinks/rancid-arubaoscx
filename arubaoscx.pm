@@ -207,9 +207,14 @@ sub CommentOutput {
         }
 
         if ( $cmd eq 'show ip ospf' ) {
+            # Old output format (at least to 10.5):
             next if /^Number of external LSAs/;
             next if /^\s+SPF calculation has run/;
             next if /^\s+Number of LSAs:/;
+            # New output format (maybe from 10.09):
+            next if /^External LSAs/;
+            next if /^SPF Calculation Count/;
+            next if /^Number of LSAs/;
         }
 
         if ( $cmd eq 'show ip ospf statistics' ) {
