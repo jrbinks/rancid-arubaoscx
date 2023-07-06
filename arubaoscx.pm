@@ -184,6 +184,7 @@ sub CommentOutput {
         if ( $cmd eq 'show system' ) {
             next if /^Up Time\s+: /;
             next if /^CPU Util \(%\)\s+: /;
+            next if /^CPU Util \(% avg \d+ min\)\s+: /;
             next if /^Memory Usage \(%\)\s+: /;
         }
 
