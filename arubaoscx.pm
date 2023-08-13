@@ -190,9 +190,13 @@ sub CommentOutput {
 
         # 'show environment temperature'
         if ( $cmd eq 'show environment temperature' ) {
-            next if /\s+Current\s+/;
-            s/(.+Module Type\s+)temperature\s(Status.+)/$1$2/;
-            s/(\s+)\d+\.\d+ C(.+)/$1$2/;
+            next if /^\s+Current$/;
+            my $fmt = "%-33s%-22s%-15s";
+	    if ( /^(Mbr\/Slot-Sensor)\s+(Module Type)\s+(temperature)\s+(Status)$/ ) {
+		$_ = sprintf($fmt, $1, $2, $4);
+            } elsif ( /^(\S+)\s+(\S+)\s+\d+\.\d+ C\s+(\S+)$/ ) {
+		$_ = sprintf($fmt, $1, $2, $3);
+            }
         }
 
         if ( $cmd eq 'show environment fan' ) {
