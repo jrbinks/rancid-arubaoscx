@@ -161,7 +161,9 @@ sub CommentOutput {
     chomp;
 
     # Display the command we're processing in the output:
-    ProcessHistory("COMMENTS", "", "", "!\n! '$cmd':\n!\n");
+    unless ( ( $cmd eq 'show lldp neighbor-info') && ( $filter_osc >= 1 ) ) {
+        ProcessHistory("COMMENTS", "", "", "!\n! '$cmd':\n!\n");
+    }
 
     while (<$INPUT>) {
         tr/\015//d;
@@ -245,6 +247,7 @@ sub CommentOutput {
         }
 
         if ( $cmd eq 'show lldp neighbor-info' ) {
+            next if ($filter_osc >= 1);
             next if /^Total Neighbor Entries (Deleted|Dropped|Aged-Out)\s+:/;
         }
 
