@@ -104,6 +104,7 @@ Tested with ArubaOS-CX versions:
 - 10.6
 - 10.7
 - 10.9
+- 10.12
 
 ## Official Status
 
