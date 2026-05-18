@@ -52,9 +52,16 @@ package arubaoscx;
 #
 # Tested on:
 #
-# Aruba JL658A 6300M 
-# Aruba JL635A 8325-48Y8C
-# v10.5
+# * Aruba JL658A 6300M
+# * Aruba JL635A 8325-48Y8C
+# * Aruba JL636A 8325-32C
+# * Aruba R8Q69A 6200M
+# * v10.5 - v10.13
+#
+# A public version of this is occasionally updated at:
+#
+#   https://github.com/jrbinks/rancid-arubaoscx
+#
 
 use 5.010;
 use strict 'vars';
@@ -187,6 +194,147 @@ sub skip_pattern {
     }
 }
 
+sub IPPimNbrBr {
+    my($INPUT, $OUTPUT, $cmd) = @_;
+    my $sub_name = (caller(0))[3];
+    print STDERR "    In $sub_name: $_" if ($debug);
+
+    my $fmt = "%-12.12s %-16.16s %-11.11s %-16.48s";
+    my $seen_header = 0;
+    my @data_lines;
+    my $in_data = 0;
+
+    ProcessHistory("IPPIMNBR", "", "", "!\n! '$cmd':\n!\n");
+
+    while (<$INPUT>) {
+        tr/\015//d;
+
+        last if (/^$prompt/);
+        chomp;
+        $_ = filter_lines($_);
+        return(1) if command_not_valid($_);
+        return(-1) if command_not_auth($_);
+        next if skip_pattern($_);
+        next if /^$/;
+
+        # It's too fiddly to try and mangle the header, so we just create a new
+        # one to fit the data into
+
+        next if ( /^-------------------------------/ );
+
+        if ( /(\s+)(VRF ?: \S+)\s+(Total number of neighbors ?: \d+)/ ) {
+            ProcessHistory("IPPIMNBR", "", "", "! $2    $3\n\n");
+            next;
+        }
+
+        if ( /^(Interface|\s+\(IPV4|----------- )/ ) {
+            next if $seen_header;
+            # This spacing is designed to match $fmt
+            my $hdr1 = "Interface    Neighbor         DR          Secondary Address";
+            my $hdr2 = "             (IPV4)           Priority    (IPV4)";
+            my $hdr3 = "------------ ---------------- ----------- -----------------";
+            ProcessHistory("IPPIMNBR", "", "", "! $hdr1\n");
+            ProcessHistory("IPPIMNBR", "", "", "! $hdr2\n");
+            ProcessHistory("IPPIMNBR", "", "", "! $hdr3\n");
+            $seen_header = 1;
+            next;
+        }
+
+        # Collect the data lines
+        if ( /^(\S+) {2,}([\d\.]+)\s+(.+) {2,}([\d:]+)\s+(\d+)\s+([\d:]+)\s+(.+)$/ ) {
+            my ($int, $nbr, $prio, $sec) = ($1, $2, $5, $7);
+            $sec =~ s/( +)?, +/, /;
+            push(@data_lines, sprintf($fmt, $int, $nbr, $prio, $sec));
+            $in_data = 1;
+            next;
+        }
+
+        # If a line starts with a space, then this may be a continuation of the
+        # previous data line, so we need to append it
+        if ( /^\s+(.+)$/ && $in_data ) {
+            my $val = pop(@data_lines);
+            push(@data_lines, "$val, $1");
+            next;
+        }
+
+        # Output any other lines
+        ProcessHistory("IPPIMNBR", "", "", "! $_\n");
+
+    }
+
+    # Sort and output the data lines
+    foreach my $data_line ( sort @data_lines ) {
+        ProcessHistory("IPPIMNBR", "", "", "! $data_line\n");
+    }
+
+    ProcessHistory("IPPIMNBR", "", "", "!\n");
+    return(0);
+
+}
+
+
+sub IPPimRPSet {
+    my($INPUT, $OUTPUT, $cmd) = @_;
+    my $sub_name = (caller(0))[3];
+    print STDERR "    In $sub_name: $_" if ($debug);
+
+    # The output has some volatile fields that need removing, and
+    # the order of the rp-set lines varies between runs so we need
+    # to do some sorting
+
+    my $fmt = "%-16.16s %-16.16s %-16.16s %-8.8s";
+    my $underline = "-" x 30;
+    my @data_lines;
+
+    ProcessHistory("IPPIMRPSET", "", "", "!\n! '$cmd':\n!\n");
+
+    while (<$INPUT>) {
+        tr/\015//d;
+
+        last if (/^$prompt/);
+        chomp;
+        $_ = filter_lines($_);
+        return(1) if command_not_valid($_);
+        return(-1) if command_not_auth($_);
+        next if skip_pattern($_);
+        next if /^$/;
+
+        # Match the header line and replace
+        if ( /^(Group Address)(\s+Group Mask)(\s+RP Address)(\s+Hold Time)(\s+Expire Time)(\s+Priority)?/ ) {
+            my $hdr = sprintf($fmt, "Group Address", "Group Mask", "RP Address", "Priority");
+            ProcessHistory("IPPIMRPSET", "", "", "! $hdr\n");
+            next;
+        }
+
+        # Match the underlines and replace
+        if ( /^---/ ) {
+            my $uline = sprintf($fmt, $underline, $underline, $underline, $underline);
+            ProcessHistory("IPPIMRPSET", "", "", "! $uline\n");
+            next;
+        }
+
+        # Collect the data lines
+        if ( /^([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+(\d+)\s+(\d+)(\s+)?(\d+)?/ ) {
+            push(@data_lines, sprintf($fmt, $1, $2, $3, $7 || "-"));
+            next;
+        }
+
+        # Output any other lines
+        ProcessHistory("IPPIMRPSET", "", "", "! $_\n");
+
+    }
+
+    # Sort and output the data lines
+    foreach my $data_line ( sort @data_lines ) {
+        ProcessHistory("IPPIMRPSET", "", "", "! $data_line\n");
+    }
+
+    ProcessHistory("IPPIMRPSET", "", "", "!\n");
+    return(0);
+ 
+}
+
+
 ## This routine processes general output of "display" commands
 sub CommentOutput {
     my($INPUT, $OUTPUT, $cmd) = @_;
@@ -201,7 +349,18 @@ sub CommentOutput {
     chomp;
 
     # Display the command we're processing in the output:
-    ProcessHistory("COMMENTS", "", "", "!\n! '$cmd':\n!\n");
+    # Some commands may result in no output if $filter_osc is set
+    # and so this is a kludgy way to not have the commands itself show
+    # up either, if that's what you want.  Personally, I don't mind
+    # the command being shown even when it has no output.
+    unless (
+        (
+            $cmd eq 'XXXXPLACEHOLDERXXXX' ||
+            $cmd eq 'XXXXPLACEHOLDER2XXXX'
+        ) && ( $filter_osc >= 1 )
+    ) {
+        ProcessHistory("COMMENTS", "", "", "!\n! '$cmd':\n!\n");
+    }
 
     while (<$INPUT>) {
         tr/\015//d;
@@ -266,11 +425,16 @@ sub CommentOutput {
             if ( /, Statistics/ ) {
                 s/, Statistics \(cleared .+ ago\)//g;
                 $ospf_stat_underline = "-" x length($_);
-             }
-             # The following line is made up of ----- of length depending
-             # on previous line, so is variable.
-             # Replace with a more fixed length line.
-             s/^-+$/$ospf_stat_underline/g if /---/;
+            }
+            # The following line is made up of ----- of length depending
+            # on previous line, so is variable.
+            # Replace with a more fixed length line.
+            s/^-+$/$ospf_stat_underline/g if /---/;
+        }
+
+        if ( $cmd eq 'show ip pim bsr' ) {
+            next if /^E-BSR Up Time/;
+            next if /^Next Bootstrap Message/;
         }
 
         if ( $cmd eq 'show ntp status' ) {
@@ -284,21 +448,42 @@ sub CommentOutput {
             # If we aren't it says: "Not synchronized with an NTP server." which is fine
         }
 
+        if ( $cmd eq 'show ip interface brief' ) {
+            next if /^$/;
+        }
+
         if ( $cmd eq 'show lldp neighbor-info' ) {
             next if /^Total Neighbor Entries (Deleted|Dropped|Aged-Out)\s+:/;
+            # Some environments might not want to see output changes when LLDP
+            # neighbours change; while one technique might be to set $filter_osc
+            # and test for it here with:
+            #
+            #  next if ($filter_osc >= 1);
+            #
+            # I think that's an overreach for what the variable is supposed to
+            # control.  See remarks at:
+            # https://github.com/jrbinks/rancid-arubaoscx/pull/3
+            #
+            # If "show lldp neighbour-info" does cause lots undesirable output
+            # changes in your environment, then consider commenting the command
+            # out of rancid.type.conf.
+        }
+
+        if ( $cmd eq 'show ip ospf neighbors' ) {
+            next if /^$/;
         }
 
         if ( $cmd eq 'show bgp ipv4 unicast summary' ) {
-             $reached_bgpv4_nbrs = 1 if (/^\s+Neighbor/);
-             s/(\s+)(Neighbor\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+)(\s*)/$1$2$3  $8 $9/ if $reached_bgpv4_nbrs;
-             s/(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+)(\s*)/$1$2$6$7/ if $reached_bgpv4_nbrs;
+            $reached_bgpv4_nbrs = 1 if (/^\s+Neighbor/);
+            s/(\s+)(Neighbor\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+)(\s*)/$1$2$3  $8 $9/ if $reached_bgpv4_nbrs;
+            s/(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+)(\s*)/$1$2$6$7/ if $reached_bgpv4_nbrs;
         }
 
         if ( $cmd eq 'show bgp ipv6 unicast summary' ) {
-             # We don't have any these, so this is a blind copy of the above
-             $reached_bgpv6_nbrs = 1 if (/^ Neighbor/);
-             s/(\s+)(Neighbor\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+)(\s*)/$1$2$3  $8 $9/ if $reached_bgpv6_nbrs;
-             s/(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+)(\s*)/$1$2$6$7/ if $reached_bgpv6_nbrs;
+            # We don't have any these, so this is a blind copy of the above
+            $reached_bgpv6_nbrs = 1 if (/^ Neighbor/);
+            s/(\s+)(Neighbor\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+)(\s*)/$1$2$3  $8 $9/ if $reached_bgpv6_nbrs;
+            s/(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+\s+)(\S+)(\s*)/$1$2$6$7/ if $reached_bgpv6_nbrs;
         }
 
         # Add the processed lines to the output buffer:
@@ -308,6 +493,7 @@ sub CommentOutput {
     # Add a blank comment line to the output buffer
     ProcessHistory("COMMENTS", "", "", "!\n");
     return(0);
+
 }
 
 
@@ -332,21 +518,33 @@ sub ShowConfiguration {
 
         $linecnt++;
 
-        # Filter out some sensitive data:
-        if ( $filter_commstr &&
-             /^(snmp-server community )(\S+)/
-           ) {
-            ProcessHistory("","","","! $1<removed>$'\n");
-            next;
-        }
-        if ( $filter_pwds >= 1 &&
-            /^((user .+ password|tacacs-server .+) ciphertext )(\S+)/
+        # Filter out sensitive data:
 
-           ) {
-            ProcessHistory("","","","! $1<removed>$'\n");
-            next;
+        # Secrets that are (may be) reversible
+        if ($filter_pwds >= 1) {
+            /^((user .+ password|tacacs-server .+) ciphertext )(\S+)/ &&
+                ProcessHistory("","","","! $1<removed>$'\n") && next;
+            /^(\s+ip ospf message-digest-key \d+ \S+ ciphertext )(\S+)/ &&
+                ProcessHistory("","","","! $1<removed>$'\n") && next;
         }
 
+        # Additionally, any secrets of any sort (even non-reversible ones)
+        if ($filter_pwds >= 2) {
+            # identify some 
+        }
+
+        # Oscillating data (possibly encoded secrets) in the config
+        if ($filter_osc >= 1) {
+            # identify some 
+        }
+
+        # SNMP Community strings
+        if ($filter_commstr) {
+            /^(snmp-server community )(\S+)/ &&
+                ProcessHistory("","","","! $1<removed>$'\n") && next;
+        }
+
+        # Add anything not already handled
         ProcessHistory("", "", "", "$_\n");
 
     }
