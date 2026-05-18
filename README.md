@@ -125,7 +125,7 @@ Tested with models from:
 - Aruba 6100 series (e.g. JL675A 6100)
 - Aruba 6200 series (e.g. R8Q69A 6200M)
 
-It will also likely work for 6200, 6100 and other models running ArubaOS-CX.
+It should mostly work for other models running ArubaOS-CX.
 
 Tested with ArubaOS-CX versions:
 
